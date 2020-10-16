@@ -129,7 +129,7 @@ def checkfor_files():
         agree_eula(eula)
         log(server_files_path, f'[-MCSM- SERVER.EULA] Successfully agreed to the Eula.')
 
-    log(server_files_path, 'f[-MCSM] Server prepared.')
+    log(server_files_path, f'[-MCSM] Server prepared.')
     log(server_files_path, f'[-MCSM- SERVER] Running server...')
     return server_files_path
 
