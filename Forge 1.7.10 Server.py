@@ -1,11 +1,15 @@
 from shutil import copy
 from shutil import copytree
-from exceptions import LostResources
 from datetime import datetime
 import os
 import subprocess
 import socket
 
+version = '1.7.10'
+server_java = 'forge-1.7.10-10.13.4.1614-1.7.10-universal.jar'
+
+class LostResources(BaseException):
+    pass
 
 def log(server_files_path, log_msg):
 
@@ -55,12 +59,21 @@ def send_resources(server_files_path):
 
     try:
         forge = os.path.join(os.getcwd(), 'resources', 'forge-1.7.10-10.13.4.1614-1.7.10-universal.jar')
+        if not os.path.isfile(forge):
+            log(server_files_path, f'[-MCSM] Failed to load resource {forge.title()}.')
+            raise LostResources('Resources folder is missing files.')
         log(server_files_path, f'[-MCSM] Loaded resource {forge.title()}.')
 
         server = os.path.join(os.getcwd(), 'resources', 'minecraft_server.1.7.10.jar')
+        if not os.path.isfile(server):
+            log(server_files_path, f'[-MCSM] Failed to load resource {server.title()}.')
+            raise LostResources('Resources folder is missing files.')
         log(server_files_path, f'[-MCSM] Loaded resource {server.title()}.')
 
         libs = os.path.join(os.getcwd(), 'resources', 'libraries')
+        if not os.path.isdir(libs):
+            log(server_files_path, f'[-MCSM] Failed to load resource {libs.title()}.')
+            raise LostResources('Resources folder is missing files.')
         log(server_files_path, f'[-MCSM] Loaded resource {libs.title()}.')
 
         copytree(libs, os.path.join(server_files_path, 'libraries'), dirs_exist_ok=True)
@@ -85,11 +98,15 @@ def checkfor_files():
     # Checks if the required files exist. Returns the server files path.
 
     server_files_path = os.path.join(os.getcwd(), 'server_files')
+
+
     if not os.path.isdir(server_files_path):
 
         # Checks if the "server_files" folder exists in the same dir as the executable. If not, creates it.
 
         os.mkdir(server_files_path)
+
+    log(server_files_path, '[-MCSM] Preparing server...')
 
     if not os.path.isfile(os.path.join(server_files_path, 'forge-1.7.10-10.13.4.1614-1.7.10-universal.jar')):
 
@@ -98,8 +115,8 @@ def checkfor_files():
         # 2 - Runs the server; (Creates it)
         # 3 - Accepts the EULA
 
-        log(server_files_path, f'[-MCSM] Sending resources to ({server_files_path}).')
-        os.mkdir(os.path.join(server_files_path, 'libraries'))
+        log(server_files_path, f'[-MCSM] Checking for resources to be sent to ({server_files_path}).')
+        os.makedirs(os.path.join(server_files_path, 'libraries'), exist_ok=True)
         send_resources(server_files_path)
         log(server_files_path, f'[-MCSM] Successfully sent resources to ({server_files_path}).')
 
@@ -112,6 +129,7 @@ def checkfor_files():
         agree_eula(eula)
         log(server_files_path, f'[-MCSM- SERVER.EULA] Successfully agreed to the Eula.')
 
+    log(server_files_path, 'f[-MCSM] Server prepared.')
     log(server_files_path, f'[-MCSM- SERVER] Running server...')
     return server_files_path
 
