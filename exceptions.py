@@ -1,0 +1,2 @@
+class LostResources(BaseException):
+    pass
