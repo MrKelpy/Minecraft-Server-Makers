@@ -5,11 +5,18 @@ import os
 import subprocess
 import socket
 
+
 version = '1.7.10'
 server_java = 'forge-1.7.10-10.13.4.1614-1.7.10-universal.jar'
 
+
 class LostResources(BaseException):
     pass
+
+
+class NoPortPropertyFound(BaseException):
+    pass
+
 
 def log(server_files_path, log_msg):
 
@@ -41,12 +48,95 @@ def agree_eula(eula):
             agreed.write(i)
 
 
-def run(server_files_path):
+def change_server_port(server, port):
+
+    log(server, '[-MCSM- SERVER] Updating server port')
+    # Changes the port of a server in the properties of it.
+
+    properties = os.path.join(server, 'server.properties')
+
+    with open(properties, 'r') as file:
+        # Reads the server.properties file.
+        data = file.readlines()
+
+    for line in data:
+
+        # Finds the server-port line in the properties. If None, raises a NoPortPropertyFound Error.
+
+        if 'server-port=' in line:
+
+            # Pops the index of the server-port line.
+            index_of_portline = data.index(line)
+            data.pop(index_of_portline)
+            break
+    else:
+        log(server, f'[-MCSM- ERROR] Could not find Property "Server Port" at ({os.path.join(properties, "server.properties")}) ')
+        raise NoPortPropertyFound(
+            f'Could not find Property "Server Port" at ({os.path.join(properties, "server.properties")})')
+
+    # Inserts the new port into the same line of the server.properties file.
+    data.insert(index_of_portline, f'server-port={port}\n')
+    log(server, f'[-MCSM- SERVER] Changed server port to "{port}"')
+
+    with open(properties, 'w') as changed:
+
+        # Writes each new line into the server.properties file.
+
+        for line in data:
+            changed.write(line)
+
+
+def getserver_ip(java_server):
+
+    # Gets an unique server IP.
+
+    port = 25565  # Sets the starting port to 25565
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    done = False
+
+    # Loops through a function to detect if the current port is being used.
+
+    while not done:
+        try:
+
+            log(java_server, f'[-MCSM- SERVER] Checking port "{port}"')
+            self_ip = socket.gethostbyname(socket.gethostname())  # Gets the local IPv4 address.
+            s.bind((socket.gethostbyname(socket.gethostname()), port))  # Tries to bind the IPv4 address to the current port.
+
+            log(java_server, '[-MCSM- SERVER] Port is free. Claiming port...')
+            change_server_port(java_server, port)  # Changes the server port.
+            return f'{self_ip}:{port}\n'  # Returns the server IP in the format - IPv4:port
+
+        except NoPortPropertyFound as err:
+            raise err
+
+        except:
+
+            # If port is being used, jumps to the next port.
+            log(java_server, f'[-MCSM- SERVER] Port already in use. Jumping to next port - {port+1}')
+            port += 1
+
+
+def run(server_files_path, integral=False):
 
     # Runs the server on preset args.
+    # If integral is set to true, the server will be run with the objective of starting it.
+
+    if integral is True:
+
+        log(server_files_path, '[-MCSM- SERVER] Running server')
+        print(f'''
+----------------------------------------------------
+© Copyright - Alexandre Silva 2020
+Server IP: {getserver_ip(server_files_path).strip()}
+Version: Forge {version}
+- REQUIRES LAN CONNECTION -
+Recommended: RadminVPN (https://www.radmin-vpn.com/)
+----------------------------------------------------
+''')
 
     subprocess.run(
-        ['java', '-Xmx1024M', '-Xms1024M', '-jar', 'forge-1.7.10-10.13.4.1614-1.7.10-universal.jar', 'nogui'],
+        ['java', '-Xmx1024M', '-Xms1024M', '-jar', server_java, 'nogui'],
         cwd=server_files_path
     )
 
@@ -58,13 +148,19 @@ def send_resources(server_files_path):
     # Logs every action
 
     try:
-        forge = os.path.join(os.getcwd(), 'resources', 'forge-1.7.10-10.13.4.1614-1.7.10-universal.jar')
+        forge = os.path.join(os.getcwd(), 'resources', server_java)
         if not os.path.isfile(forge):
             log(server_files_path, f'[-MCSM] Failed to load resource {forge.title()}.')
             raise LostResources('Resources folder is missing files.')
         log(server_files_path, f'[-MCSM] Loaded resource {forge.title()}.')
 
-        server = os.path.join(os.getcwd(), 'resources', 'minecraft_server.1.7.10.jar')
+        properties_file = os.path.join(os.getcwd(), 'resources', 'server.properties')
+        if not os.path.isfile(properties_file):
+            log(server_files_path, f'[-MCSM] Failed to load resource {properties_file.title()}.')
+            raise LostResources('Resources folder is missing files.')
+        log(server_files_path, f'[-MCSM] Loaded resource {properties_file.title()}.')
+
+        server = os.path.join(os.getcwd(), 'resources', f'minecraft_server.{version}.jar')
         if not os.path.isfile(server):
             log(server_files_path, f'[-MCSM] Failed to load resource {server.title()}.')
             raise LostResources('Resources folder is missing files.')
@@ -82,13 +178,16 @@ def send_resources(server_files_path):
         copy(forge, server_files_path)
         log(server_files_path, f'[-MCSM] Sent resource {forge.title()} to ({server_files_path})')
 
+        copy(properties_file, server_files_path)
+        log(server_files_path, f'[-MCSM] Sent resource {properties_file.title()} to ({server_files_path})')
+
         copy(server, server_files_path)
         log(server_files_path, f'[-MCSM] Sent resource {server.title()} to ({server_files_path})')
 
         return forge, server, libs
     except:
         log(server_files_path, f'[-MCSM- ERROR] Resources were lost. Program closed. <---------------- Directory at {os.path.join(server_files_path, "resources")}'
-                               f'is either empty, missing files, or non-existant. If this error persists, email the author at alexandresilvacode@gmail.com or open'
+                               f'is either empty, missing files, or non-existent. If this error persists, email the author at alexandresilvacode@gmail.com or open'
                                f'an Issue on GitHub. (Try to reinstall the program!)')
         raise LostResources('Resources folder is missing files.')
 
@@ -99,7 +198,6 @@ def checkfor_files():
 
     server_files_path = os.path.join(os.getcwd(), 'server_files')
 
-
     if not os.path.isdir(server_files_path):
 
         # Checks if the "server_files" folder exists in the same dir as the executable. If not, creates it.
@@ -108,7 +206,7 @@ def checkfor_files():
 
     log(server_files_path, '[-MCSM] Preparing server...')
 
-    if not os.path.isfile(os.path.join(server_files_path, 'forge-1.7.10-10.13.4.1614-1.7.10-universal.jar')):
+    if not os.path.isfile(os.path.join(server_files_path, server_java)):
 
         # Checks if the files exist inside the server_files. If not:
         # 1 - Sends the resources from the resource folder to it, to begin installation;
@@ -130,14 +228,10 @@ def checkfor_files():
         log(server_files_path, f'[-MCSM- SERVER.EULA] Successfully agreed to the Eula.')
 
     log(server_files_path, f'[-MCSM] Server prepared.')
-    log(server_files_path, f'[-MCSM- SERVER] Running server...')
+    log(server_files_path, f'[-MCSM- SERVER] Initialising Server')
+
     return server_files_path
 
 
-print(f'''
-Server IP: {socket.gethostbyname(socket.gethostname())}:25565
-- REQUIRES LAN CONNECTION -
-Recommended: RadminVPN (https://www.radmin-vpn.com/)
-''')
-
-run(checkfor_files())
+sv = checkfor_files()
+run(sv, integral=True)
