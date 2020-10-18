@@ -18,6 +18,10 @@ class NoPortPropertyFound(BaseException):
     pass
 
 
+class DirNotFound(BaseException):
+    pass
+
+
 def log(server_files_path, log_msg):
 
     # Logs an action from the program into the program logs.
@@ -117,6 +121,36 @@ def getserver_ip(java_server):
             port += 1
 
 
+def getserver_mods(server_files):
+
+    # Returns the list of mods installed on the server, logs every action.
+
+    mods = os.path.join(server_files, 'mods')  # mods folder path
+
+    # Checks if the mods folder exists in the path. If not, the server is not installed correctly, and so, raises a DirNotFound Exception.
+    log(server_files, '[-MCSM] Finding mods folder')
+    if not os.path.isdir(mods):
+        log(server_files, '[-MCSM] Mods folder nonexistent. This may have occurred due to a bad installation of the server.')
+        raise DirNotFound('Could not find mods folder.')
+    log(server_files, f'[-MCSM] Found mods folder at ({mods})')
+
+    modlist = ''  # modlist declaration
+
+    # loops through all the files inside the mods folder, and adds the title of the mods contained within to the modlist
+    for file in os.listdir(mods):
+        if '.jar' in file:
+            log(server_files, f'[-MCSM] Found mod "{file.title()}"')
+            modlist += f'- {file.title()}\n'
+
+    # If modlist is not empty, return modlist.
+    if modlist != '':
+        return modlist.strip()
+
+    # Else, return string - 'No mods found.'
+    else:
+        return 'No mods found.'
+
+
 def run(server_files_path, integral=False):
 
     # Runs the server on preset args.
@@ -132,6 +166,9 @@ Server IP: {getserver_ip(server_files_path).strip()}
 Version: Forge {version}
 - REQUIRES LAN CONNECTION -
 Recommended: RadminVPN (https://www.radmin-vpn.com/)
+----------------------------------------------------
+ServerSide Mod List:
+{getserver_mods(server_files_path)}
 ----------------------------------------------------
 ''')
 
