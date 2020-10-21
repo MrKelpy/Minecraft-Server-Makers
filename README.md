@@ -9,4 +9,6 @@ The servers will run on YOURIPADRESS:25565.
 ## Available Versions
 
 - Forge 1.7.10 Server
-
+- Vanilla 1.16.3 Server
+- Vanilla 1.9.4 Server
+- Vanilla 1.8.9 Server
